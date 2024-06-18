@@ -133,6 +133,10 @@ describe('expect.addEqualityTesters', () => {
     )
   })
 
+  test('', () => {
+    expect({ a: 1, b: 2, c: 3 }).toEqual(expect.objectContaining({ b: 2, c: 2 }))
+  })
+
   test('toBe recommends toStrictEqual even with different objects', () => {
     expect(() => expect(customObject1).toBe(customObject2)).toThrow('toStrictEqual')
   })
