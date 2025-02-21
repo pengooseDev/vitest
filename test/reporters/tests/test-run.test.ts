@@ -1074,14 +1074,37 @@ async function run(
     ...customConfig,
   }
 
-  const { stdout, stderr } = await runInlineTests(structure, config)
+  return new Promise<string>(async (resolve, reject) => {
+    const onError = (err: Error) => {
+      cleanup()
+      reject(err)
+    }
+    const onRejection = (reason: any) => {
+      cleanup()
+      reject(reason)
+    }
+    const cleanup = () => {
+      process.off('uncaughtException', onError)
+      process.off('unhandledRejection', onRejection)
+    }
+    process.on('uncaughtException', onError)
+    process.on('unhandledRejection', onError)
 
-  if (!reporterOptions?.printTestRunEvents && !reporterOptions?.failed) {
-    expect(stdout).toBe('')
-    expect(stderr).toBe('')
-  }
+    try {
+      const { stdout, stderr } = await runInlineTests(structure, config)
+      cleanup()
 
-  return `\n${reporter.calls.join('\n').trim()}`
+      if (!reporterOptions?.printTestRunEvents && !reporterOptions?.failed) {
+        expect(stdout).toBe('')
+        expect(stderr).toBe('')
+      }
+
+      resolve(`\n${reporter.calls.join('\n').trim()}`)
+    } catch (e) {
+      cleanup()
+      reject(e)
+    }
+  })
 }
 
 class CustomReporter implements Reporter {
@@ -1098,9 +1121,6 @@ class CustomReporter implements Reporter {
   onTestRunEnd(modules: ReadonlyArray<TestModule>, errors: ReadonlyArray<SerializedError>, state: TestRunEndReason) {
     if (this.options.printTestRunEvents) {
       this.calls.push(`onTestRunEnd   (${state}, ${modules.length} modules, ${errors.length} errors)`)
-      errors.forEach((error) => {
-        this.calls.push(`  ${error.message}`)
-      })
     }
   }
 
