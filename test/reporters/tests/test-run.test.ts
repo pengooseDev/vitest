@@ -963,6 +963,83 @@ describe('type checking', () => {
       onTestRunEnd   (failed, 2 modules, 0 errors)"
     `)
   })
+  test('variable shadowing', async () => {
+    const report = await run({
+      'shadow-test.test-d.ts': ts`
+        import { it } from 'vitest'
+        it('shadow test', () => {
+          const test = { doSomething() {} }
+          test.doSomething()
+        });
+      `,
+      'shadow-it.test-d.ts': ts`
+        import { test } from 'vitest'
+        test('shadow it', () => {
+          const it = { doSomething() {} }
+          it.doSomething()
+        });
+      `,
+      'shadow-describe.test-d.ts': ts`
+        import { suite } from 'vitest'
+        suite('shadow describe', () => {
+          const describe = { doSomething() {} }
+            describe.doSomething()
+          });
+        `,
+      'shadow-suite.test-d.ts': ts`
+        import { describe } from 'vitest'
+        describe('shadow suite', () => {
+          const suite = { doSomething() {} }
+          suite.doSomething()
+        });
+      `,
+      'tsconfig.json': JSON.stringify({
+        compilerOptions: {
+          strict: true,
+          module: 'NodeNext',
+        },
+        include: ['./*.test-d.ts'],
+      }),
+    }, {
+      typecheck: {
+        enabled: true,
+      },
+    }, { printTestRunEvents: true })
+
+    expect(report).toMatchInlineSnapshot(`
+      "
+      onTestRunStart (4 specifications)
+      onTestModuleQueued    (shadow-describe.test-d.ts)
+      onTestModuleQueued    (shadow-it.test-d.ts)
+      onTestModuleQueued    (shadow-suite.test-d.ts)
+      onTestModuleQueued    (shadow-test.test-d.ts)
+      onTestModuleCollected (shadow-describe.test-d.ts)
+      onTestModuleCollected (shadow-it.test-d.ts)
+      onTestModuleCollected (shadow-suite.test-d.ts)
+      onTestModuleCollected (shadow-test.test-d.ts)
+      onTestModuleStart     (shadow-describe.test-d.ts)
+        onTestSuiteReady    (shadow-describe.test-d.ts) |shadow describe|
+        onTestSuiteResult   (shadow-describe.test-d.ts) |shadow describe|
+      onTestModuleEnd       (shadow-describe.test-d.ts)
+
+      onTestModuleStart     (shadow-it.test-d.ts)
+        onTestCaseReady     (shadow-it.test-d.ts) |shadow it|
+        onTestCaseResult    (shadow-it.test-d.ts) |shadow it|
+      onTestModuleEnd       (shadow-it.test-d.ts)
+
+      onTestModuleStart     (shadow-suite.test-d.ts)
+        onTestSuiteReady    (shadow-suite.test-d.ts) |shadow suite|
+        onTestSuiteResult   (shadow-suite.test-d.ts) |shadow suite|
+      onTestModuleEnd       (shadow-suite.test-d.ts)
+
+      onTestModuleStart     (shadow-test.test-d.ts)
+        onTestCaseReady     (shadow-test.test-d.ts) |shadow test|
+        onTestCaseResult    (shadow-test.test-d.ts) |shadow test|
+      onTestModuleEnd       (shadow-test.test-d.ts)
+
+      onTestRunEnd   (passed, 4 modules, 0 errors)"
+    `)
+  })
 })
 
 interface ReporterOptions {
@@ -1021,6 +1098,9 @@ class CustomReporter implements Reporter {
   onTestRunEnd(modules: ReadonlyArray<TestModule>, errors: ReadonlyArray<SerializedError>, state: TestRunEndReason) {
     if (this.options.printTestRunEvents) {
       this.calls.push(`onTestRunEnd   (${state}, ${modules.length} modules, ${errors.length} errors)`)
+      errors.forEach((error) => {
+        this.calls.push(`  ${error.message}`)
+      })
     }
   }
 
