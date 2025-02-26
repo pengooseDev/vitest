@@ -129,6 +129,8 @@ export function processError(
   if (err.name) {
     err.nameStr = String(err.name)
   }
+  const normalizedExpected = removeUndefined(err.expected)
+  const normalizedActual = removeUndefined(err.actual)
 
   if (
     err.showDiff
@@ -136,7 +138,7 @@ export function processError(
       && err.expected !== undefined
       && err.actual !== undefined)
   ) {
-    err.diff = printDiffOrStringify(err.actual, err.expected, {
+    err.diff = printDiffOrStringify(normalizedActual, normalizedExpected, {
       ...diffOptions,
       ...err.diffOptions as DiffOptions,
     })
@@ -177,4 +179,21 @@ export function processError(
       ),
     )
   }
+}
+
+// NOTE: Approach 1
+function removeUndefined(val: any): any {
+  if (Array.isArray(val)) {
+    return val.map(removeUndefined)
+  }
+  if (val && typeof val === 'object') {
+    const clone: Record<string, any> = {}
+    for (const key in val) {
+      if (val[key] !== undefined) {
+        clone[key] = removeUndefined(val[key])
+      }
+    }
+    return clone
+  }
+  return val
 }
