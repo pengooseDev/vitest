@@ -200,12 +200,55 @@ function getFormatOptions(
   }
 }
 
+function normalizeDiff(a: any, b: any): [any, any] {
+  if (
+    a &&
+    b &&
+    typeof a === 'object' &&
+    typeof b === 'object' &&
+    Object.prototype.toString.call(a) === '[object Object]' &&
+    Object.prototype.toString.call(b) === '[object Object]'
+  ) {
+    const normA = { ...a }
+    const normB = { ...b }
+    const allKeys = new Set([...Object.keys(normA), ...Object.keys(normB)])
+    for (const key of allKeys) {
+      const hasA = Object.prototype.hasOwnProperty.call(normA, key)
+      const hasB = Object.prototype.hasOwnProperty.call(normB, key)
+      if (hasA && !hasB && normA[key] === undefined) {
+        delete normA[key]
+      }
+      if (hasB && !hasA && normB[key] === undefined) {
+        delete normB[key]
+      }
+
+      if (
+        hasA &&
+        hasB &&
+        normA[key] &&
+        normB[key] &&
+        typeof normA[key] === 'object' &&
+        typeof normB[key] === 'object' &&
+        Object.prototype.toString.call(normA[key]) === '[object Object]' &&
+        Object.prototype.toString.call(normB[key]) === '[object Object]'
+      ) {
+        [normA[key], normB[key]] = normalizeDiff(normA[key], normB[key])
+      }
+    }
+    return [normA, normB]
+  }
+  return [a, b]
+}
 function getObjectsDifference(
   a: Record<string, any>,
   b: Record<string, any>,
   formatOptions: PrettyFormatOptions,
   options?: DiffOptions,
 ): string {
+  if (Object.prototype.toString.call(a) === '[object Object]' &&
+    Object.prototype.toString.call(b) === '[object Object]') {
+    [a, b] = normalizeDiff(a, b)
+  }
   const formatOptionsZeroIndent = { ...formatOptions, indent: 0 }
   const aCompare = prettyFormat(a, formatOptionsZeroIndent)
   const bCompare = prettyFormat(b, formatOptionsZeroIndent)
