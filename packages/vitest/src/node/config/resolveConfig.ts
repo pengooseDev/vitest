@@ -802,8 +802,13 @@ export function resolveConfig(
   resolved.browser.isolate ??= true
   resolved.browser.fileParallelism
     ??= options.fileParallelism ?? mode !== 'benchmark'
-  // disable in headless mode by default, and if CI is detected
-  resolved.browser.ui ??= resolved.browser.headless === true ? false : !isCI
+  if (typeof options.ui === 'boolean') {
+    resolved.browser.ui = options.ui
+  }
+  else {
+    // disable in headless mode by default, and if CI is detected
+    resolved.browser.ui ??= resolved.browser.headless === true ? false : !isCI
+  }
   if (resolved.browser.screenshotDirectory) {
     resolved.browser.screenshotDirectory = resolve(
       resolved.root,
